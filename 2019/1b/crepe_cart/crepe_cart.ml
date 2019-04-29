@@ -1,3 +1,5 @@
+let (||>) f g x = f x |> g
+
 let unwrap = function
   | None -> failwith "unwrap"
   | Some x -> x
@@ -84,6 +86,35 @@ module String = struct
   let () = assert (split2_on_char '/' "ab/cd" = ("ab", "cd"))
 end
 
+module Readline = struct
+  let int = int_of_string
+  let char s = assert (String.length s = 1); s.[0]
+  let float = float_of_string
+  let string = fun s -> s
+
+  let list ?(sep=' ') cast =
+    String.split_on_char sep ||> List.map cast
+  let array ?sep cast =
+    list ?sep cast ||> Array.of_list
+
+  let pair ?sep ca cb s =
+    match list ?sep string s with
+    | [a; b] -> (ca a, cb b)
+    | _ -> failwith "Readline.pair"
+
+  let triple ?sep ca cb cc s =
+    match list ?sep string s with
+    | [a; b; c] -> (ca a, cb b, cc c)
+    | _ -> failwith "Readline.triple"
+
+  let quadruple ?sep ca cb cc cd s =
+    match list ?sep string s with
+    | [a; b; c; d] -> (ca a, cb b, cc c, cd d)
+    | _ -> failwith "Readline.quadruple"
+
+  let read cast = read_line () |> cast
+end
+
 (* ========================================================================== *)
 
 type point = int * int
@@ -99,11 +130,11 @@ let problem =
   let t = int_of_string (input_line stdin) in
   let tests = ref [] in
   for t_i = 1 to t do
-    let [p; q] = input_line stdin |> String.split_on_char ' ' |> List.map int_of_string in
+    let (p, q) = Readline.(read (pair int int)) in
     let people = ref [] in
     for p_i = 1 to p do
-      let [x; y; d] = input_line stdin |> String.split_on_char ' ' in
-      people := (int_of_string x, int_of_string y, d) :: !people
+      let (x, y, d) = Readline.(read (triple int int string)) in
+      people := (x, y, d) :: !people
     done;
     tests := { q ; p = List.rev !people } :: !tests
   done;

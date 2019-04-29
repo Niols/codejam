@@ -1,3 +1,5 @@
+let (||>) f g x = f x |> g
+
 let unwrap = function
   | None -> failwith "unwrap"
   | Some x -> x
@@ -84,6 +86,35 @@ module String = struct
   let () = assert (split2_on_char '/' "ab/cd" = ("ab", "cd"))
 end
 
+module Readline = struct
+  let int = int_of_string
+  let char s = assert (String.length s = 1); s.[0]
+  let float = float_of_string
+  let string = fun s -> s
+
+  let list ?(sep=' ') cast =
+    String.split_on_char sep ||> List.map cast
+  let array ?sep cast =
+    list ?sep cast ||> Array.of_list
+
+  let pair ?sep ca cb s =
+    match list ?sep string s with
+    | [a; b] -> (ca a, cb b)
+    | _ -> failwith "Readline.pair"
+
+  let triple ?sep ca cb cc s =
+    match list ?sep string s with
+    | [a; b; c] -> (ca a, cb b, cc c)
+    | _ -> failwith "Readline.triple"
+
+  let quadruple ?sep ca cb cc cd s =
+    match list ?sep string s with
+    | [a; b; c; d] -> (ca a, cb b, cc c, cd d)
+    | _ -> failwith "Readline.quadruple"
+
+  let read cast = read_line () |> cast
+end
+
 (* ========================================================================== *)
 
 let select7 = 0b1111111
@@ -111,11 +142,10 @@ let solve_test () =
   Format.printf "%d %d %d %d %d %d@." r1 r2 r3 r4 r5 r6
 
 let solve () =
-  let [t; _w] = input_line stdin |> String.split_on_char ' ' in
-  let t = int_of_string t in
+  let (t, _w) = Readline.(read (pair int string)) in
   for t_i = 1 to t do
     solve_test ();
-    if input_line stdin = "-1" then
+    if Readline.(read string) = "-1" then
       exit 1
   done
 

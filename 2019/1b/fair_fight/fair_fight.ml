@@ -1,3 +1,5 @@
+let (||>) f g x = f x |> g
+
 let unwrap = function
   | None -> failwith "unwrap"
   | Some x -> x
@@ -84,6 +86,35 @@ module String = struct
   let () = assert (split2_on_char '/' "ab/cd" = ("ab", "cd"))
 end
 
+module Readline = struct
+  let int = int_of_string
+  let char s = assert (String.length s = 1); s.[0]
+  let float = float_of_string
+  let string = fun s -> s
+
+  let list ?(sep=' ') cast =
+    String.split_on_char sep ||> List.map cast
+  let array ?sep cast =
+    list ?sep cast ||> Array.of_list
+
+  let pair ?sep ca cb s =
+    match list ?sep string s with
+    | [a; b] -> (ca a, cb b)
+    | _ -> failwith "Readline.pair"
+
+  let triple ?sep ca cb cc s =
+    match list ?sep string s with
+    | [a; b; c] -> (ca a, cb b, cc c)
+    | _ -> failwith "Readline.triple"
+
+  let quadruple ?sep ca cb cc cd s =
+    match list ?sep string s with
+    | [a; b; c; d] -> (ca a, cb b, cc c, cd d)
+    | _ -> failwith "Readline.quadruple"
+
+  let read cast = read_line () |> cast
+end
+
 (* ========================================================================== *)
 
 type test =
@@ -124,11 +155,10 @@ let solve t =
   !total
 
 let () =
-  let t = input_line stdin |> int_of_string in
-  let ts = ref [] in
+  let t = Readline.(read int) in
   for i = 1 to t do
-    let [n; k] = input_line stdin |> String.split_on_char ' ' |> List.map int_of_string in
-    let c = input_line stdin |> String.split_on_char ' ' |> List.map int_of_string |> Array.of_list in
-    let d = input_line stdin |> String.split_on_char ' ' |> List.map int_of_string |> Array.of_list in
+    let (n, k) = Readline.(read (pair int int)) in
+    let c = Readline.(read (array int)) in
+    let d = Readline.(read (array int)) in
     Format.printf "Case #%d: %d@." i (solve { n; k; c; d })
   done
