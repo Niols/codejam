@@ -86,33 +86,48 @@ module String = struct
   let () = assert (split2_on_char '/' "ab/cd" = ("ab", "cd"))
 end
 
-module Readline = struct
+module Read = struct
   let int = int_of_string
-  let char s = assert (String.length s = 1); s.[0]
+  let bit = int ||> ((=) 1)
   let float = float_of_string
-  let string = fun s -> s
+  let char x = assert (String.length x = 1); x.[0]
+  let string x = x
 
-  let list ?(sep=' ') cast =
-    String.split_on_char sep ||> List.map cast
-  let array ?sep cast =
-    list ?sep cast ||> Array.of_list
+  let line t =
+    read_line ()
+    |> String.split_on_char ' '
+    |> List.map t
 
-  let pair ?sep ca cb s =
-    match list ?sep string s with
-    | [a; b] -> (ca a, cb b)
-    | _ -> failwith "Readline.pair"
+  let line_a t =
+    line t |> Array.of_list
 
-  let triple ?sep ca cb cc s =
-    match list ?sep string s with
-    | [a; b; c] -> (ca a, cb b, cc c)
-    | _ -> failwith "Readline.triple"
+  let line1 t =
+    t (read_line ())
 
-  let quadruple ?sep ca cb cc cd s =
-    match list ?sep string s with
-    | [a; b; c; d] -> (ca a, cb b, cc c, cd d)
-    | _ -> failwith "Readline.quadruple"
+  let line2g (t1, t2) =
+    match read_line () |> String.split_on_char ' ' with
+    | [x1; x2] -> (t1 x1, t2 x2)
+    | _ -> assert false
 
-  let read cast = read_line () |> cast
+  let line3g (t1, t2, t3) =
+    match read_line () |> String.split_on_char ' ' with
+    | [x1; x2; x3] -> (t1 x1, t2 x2, t3 x3)
+    | _ -> assert false
+
+  let line4g (t1, t2, t3, t4) =
+    match read_line () |> String.split_on_char ' ' with
+    | [x1; x2; x3; x4] -> (t1 x1, t2 x2, t3 x3, t4 x4)
+    | _ -> assert false
+
+  let line5g (t1, t2, t3, t4, t5) =
+    match read_line () |> String.split_on_char ' ' with
+    | [x1; x2; x3; x4; x5] -> (t1 x1, t2 x2, t3 x3, t4 x4, t5 x5)
+    | _ -> assert false
+
+  let line2 t = line2g (t, t)
+  let line3 t = line3g (t, t, t)
+  let line4 t = line4g (t, t, t, t)
+  let line5 t = line5g (t, t, t, t, t)
 end
 
 (* ========================================================================== *)
