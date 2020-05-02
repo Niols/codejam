@@ -141,9 +141,11 @@ let letters = Hashtbl.create 8
 let order_letters l =
   List.iter
     (fun (_q, s) ->
-       match Hashtbl.find_opt letters s.[0] with
-       | None -> Hashtbl.add letters s.[0] 1
-       | Some i -> Hashtbl.replace letters s.[0] (i+1))
+       try
+         let i = Hashtbl.find letters s.[0] in
+         Hashtbl.replace letters s.[0] (i+1)
+       with
+        Not_found -> Hashtbl.add letters s.[0] 1)
     l;
   let letters_l = ref [] in
   Hashtbl.iter (fun l o ->
