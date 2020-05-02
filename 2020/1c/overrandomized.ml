@@ -138,14 +138,34 @@ let rec pow x n =
 
 let letters = Hashtbl.create 8
 
-let order_letters l =
+let order_first_letters l =
   List.iter
     (fun (_q, s) ->
        try
          let i = Hashtbl.find letters s.[0] in
          Hashtbl.replace letters s.[0] (i+1)
        with
-        Not_found -> Hashtbl.add letters s.[0] 1)
+       | Invalid_argument _ -> ()
+       | Not_found -> Hashtbl.add letters s.[0] 1
+    )
+    l;
+  let letters_l = ref [] in
+  Hashtbl.iter (fun l o ->
+      letters_l := (o, l) :: !letters_l)
+    letters;
+  List.sort compare !letters_l
+
+let order_letters l =
+  List.iter
+    (fun (_q, s) ->
+       String.iter (fun c ->
+           try
+             let i = Hashtbl.find letters c in
+             Hashtbl.replace letters c (i+1)
+           with
+           | Invalid_argument _ -> ()
+           | Not_found -> Hashtbl.add letters c 1)
+         s)
     l;
   let letters_l = ref [] in
   Hashtbl.iter (fun l o ->
@@ -157,12 +177,14 @@ exception Found of char
 
 let find_zero l =
   try
-    List.iter (fun (_q, s) ->
-        String.iter (fun c ->
-            if not (Hashtbl.mem letters c) then
-              raise (Found c)
-          )
-          s
+    List.iter
+      (fun (_q, s) ->
+         String.iter
+           (fun c ->
+              if not (Hashtbl.mem letters c) then
+                raise (Found c)
+           )
+           s
       )
       l;
     assert false
@@ -170,9 +192,33 @@ let find_zero l =
     Found c -> c
 
 let solve u l =
+  Hashtbl.reset letters;
   let order = order_letters l in
-  let zero = find_zero l in
-  Format.printf "%c" zero;
+  assert (List.length order <= 10);
+  match order with
+  | [] -> assert false
+  | (_o, l) :: others ->
+    (* zero appears less than others *)
+    Format.printf "%c" l;
+    List.iter (fun (_o, l) ->
+        Format.printf "%c" l)
+      (List.rev others)
+
+let solve_first_letter u l =
+  Hashtbl.reset letters;
+  let order = order_first_letters l in
+  let order =
+    if List.length order = 10 then
+      (
+        match order with
+        | [] -> assert false
+        | zero :: others -> others @ [zero]
+      )
+    else if List.length order = 9 then
+      order @ [(0, find_zero l)]
+    else
+      assert false
+  in
   List.iter (fun (_o, l) ->
       Format.printf "%c" l)
     (List.rev order)
@@ -182,10 +228,11 @@ let () =
   for i = 1 to t do
     let u = Read.(line1 int) in
     let l = List.init 10_000 (fun _ ->
-        Read.(line2g (int, string))
+        let (q, r) = Read.(line2g (int, string)) in
+        (q, String.uppercase r)
       )
     in
     Format.printf "Case #%d: " i;
-    solve u l;
+    solve_first_letter u l;
     Format.printf "@."
   done
