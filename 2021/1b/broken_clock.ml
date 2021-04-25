@@ -236,57 +236,100 @@ let iterate_cases solver cast =
 
 (* * *)
 
-let tick_to_hours   t = (t / 120_000_000_000) / (360 / 12)
-let tick_to_minutes t = (t / 120_000_000_000) / (360 / 60)
-let tick_to_seconds t = (t / 120_000_000_000) / (360 / 60)
-let tick_to_nanoseconds t = (t / 120_000_000_000) mod (360 / 60)
-
 let ticks_full_turn = 360 * 120_000_000_000
 
+let tick_to_hours   ticks =
+  12 * ticks / ticks_full_turn
+
+let tick_to_minutes ticks =
+  60 * ticks / ticks_full_turn
+
+let tick_to_seconds ticks =
+  60 * ticks / ticks_full_turn
+
+let tick_to_nanoseconds ticks_h =
+  epf "tick_to_nanoseconds %d@." ticks_h;
+  ticks_h mod (ticks_full_turn / (12 * 60 * 60))
+
+let pos_mod x y =
+  let x = x mod y in
+  if x < 0 then x + y else x
+
+let find_offset h m s =
+  let o = pos_mod ((60*m - s) - (60*h - 5*m)) ticks_full_turn in
+  epf "found 4 * offset of %d@." o;
+  o
+
+let is_hour_minute_second h m s o i =
+  let o = (o + i * ticks_full_turn) / 4 in
+  pos_mod (12 * (h - o)) ticks_full_turn
+  = pos_mod (m - o) ticks_full_turn
+  &&
+  pos_mod (60 * (m - o)) ticks_full_turn
+  = pos_mod (s - o) ticks_full_turn
+
 let is_hour_minute_second h m s =
-  ((12 * h) mod ticks_full_turn) = m
-  && ((60 * m) mod ticks_full_turn) = s
+  let o = find_offset h m s in
+  if is_hour_minute_second h m s o 0 then
+    (true, o/4)
+  else if is_hour_minute_second h m s o 1 then
+    (true, (o+ticks_full_turn)/4)
+  else if is_hour_minute_second h m s o 2 then
+    (true, (o+2*ticks_full_turn)/4)
+  else if is_hour_minute_second h m s o 3 then
+    (true, (o+3*ticks_full_turn)/4)
+  else
+    (false, 0)
 
 let solve _ =
   let (a, b, c) = Read.(line (triple int)) in
-  let (h, m, s) =
-    if is_hour_minute_second a b c then
+  let (h, m, s, o) =
+    if is_hour_minute_second a b c |> fst then
       (
-        epf "is_hour_minute_second a b c@.";
-        (a, b, c)
+        let o = is_hour_minute_second a b c |> snd in
+        epf "is_hour_minute_second a b c [%d]@." o;
+        (a, b, c, o)
       )
-    else if is_hour_minute_second a c b then
+    else if is_hour_minute_second a c b |> fst then
       (
-        epf "is_hour_minute_second a c b@.";
-        (a, c, b)
+        let o = is_hour_minute_second a c b |> snd in
+        epf "is_hour_minute_second a c b [%d]@." o;
+        (a, c, b, o)
       )
-    else if is_hour_minute_second b a c then
+    else if is_hour_minute_second b a c |> fst then
       (
-        epf "is_hour_minute_second b a c@.";
-        (b, a, c)
+        let o = is_hour_minute_second b a c |> snd in
+        epf "is_hour_minute_second b a c [%d]@." o;
+        (b, a, c, o)
       )
-    else if is_hour_minute_second b c a then
+    else if is_hour_minute_second b c a |> fst then
       (
-        epf "is_hour_minute_second b c a@.";
-        (b, c, a)
+        let o = is_hour_minute_second b c a |> snd in
+        epf "is_hour_minute_second b c a [%d]@." o;
+        (b, c, a, o)
       )
-    else if is_hour_minute_second c a b then
+    else if is_hour_minute_second c a b |> fst then
       (
-        epf "is_hour_minute_second c a b@.";
-        (c, a, b)
+        let o = is_hour_minute_second c a b |> snd in
+        epf "is_hour_minute_second c a b [%d]@." o;
+        (c, a, b, o)
       )
-    else if is_hour_minute_second c b a then
+    else if is_hour_minute_second c b a |> fst then
       (
-        epf "is_hour_minute_second c b a@.";
-        (c, b, a)
+        let o = is_hour_minute_second c b a |> snd in
+        epf "is_hour_minute_second c b a [%d]@." o;
+        (c, b, a, o)
       )
     else
       assert false
   in
-  let h = tick_to_hours h in
-  let m = tick_to_minutes m in
-  let s = tick_to_seconds s in
-  let ns = tick_to_nanoseconds s in
+  let h = pos_mod (h - o) ticks_full_turn in
+  let m = pos_mod (m - o) ticks_full_turn in
+  let s = pos_mod (s - o) ticks_full_turn in
+  let h = tick_to_hours h
+  and m = tick_to_minutes m
+  and s = tick_to_seconds s
+  and ns = tick_to_nanoseconds h in
   (h, m, s, ns)
 
 let () = iterate_cases solve Write.(tuple4 int)
