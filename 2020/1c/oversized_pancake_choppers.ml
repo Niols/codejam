@@ -135,79 +135,92 @@ end
 let minimum = ref max_int
 let maximum = ref min_int
 let slices = Hashtbl.create 300
+let approx_slices = Hashtbl.create 300
 let minimum_cuts = ref max_int
 
 let init () =
   minimum := max_int;
   maximum := min_int;
   Hashtbl.reset slices;
+  Hashtbl.reset approx_slices;
   minimum_cuts := max_int;
   ()
-
-let feed_ones las =
-  List.iter
-    (fun a ->
-       if a > !maximum then maximum := a;
-       if a < !minimum then minimum := a;
-       try
-         let slices_a = Hashtbl.find slices a in
-         Hashtbl.replace slices a [1 + List.hd slices_a]
-       with
-         Not_found ->
-         Hashtbl.add slices a [1]
-    )
-    las
-
-let feed_multiples m las = (* m > 1 *)
-  List.iter
-    (fun a ->
-       try
-         let slices_ma = Hashtbl.find slices (a * m) in
-         let slices_a = Hashtbl.find slices a in
-         Hashtbl.replace slices a (slices_a @ [List.hd slices_ma])
-       with
-         Not_found -> ()
-    )
-    las
-
-let threshold = 20
-
-let feed las =
-  Format.eprintf "feed: feed_ones@.";
-  feed_ones las;
-  Format.eprintf "  minimum = %d@." !minimum;
-  Format.eprintf "  maximum = %d@." !maximum;
-  let m = ref 2 in
-  while !m * !minimum <= !maximum && !m <= threshold do
-    Format.eprintf "feed: feed_multiples %d@." !m;
-    feed_multiples !m las;
-    incr m
-  done
 
 let iof = int_of_float
 let foi = float_of_int
 
-let rec compute_cuts_for_one d i c = function
+let feed d a =
+  for i = 1 to d do
+    let da = a /. (foi i) in
+    let slices_da =
+      try
+        Hashtbl.find slices da
+      with
+        Not_found ->
+        let slices_da = Array.make d 0 in
+        Hashtbl.add slices da slices_da;
+        slices_da
+    in
+    slices_da.(i - 1) <- slices_da.(i - 1) + 1
+  done
+
+let feed_approx las =
+  List.iter
+    (fun a ->
+       Hashtbl.iter
+         (fun a' slices_a' ->
+            if a > a' then
+              let n = a /. a' in
+              if a' *. n = a then
+                ()
+              else
+                let approx_slices_a' =
+                  try Hashtbl.find approx_slices a'
+                  with Not_found -> 0
+                in
+                Hashtbl.replace approx_slices a' (approx_slices_a' + (iof n))
+         )
+         slices
+    )
+    las
+
+let feed_all d las =
+  List.iter (feed d) las;
+  feed_approx las
+
+let rec compute_cuts_for_one a d i c = function
   | [] ->
-    max_int
+    let approx_slices_a = try Hashtbl.find approx_slices a with Not_found -> 0 in
+    if d < approx_slices_a then
+      c + d
+    else
+      max_int
   | slices_i :: others ->
     let k = iof (0.5 +. ceil ((foi d) /. (foi (i+1)))) in
     if k <= slices_i then
-      c + k * i
+      let d = d - (i+1) * (k-1) in
+      let c = c + i * (k-1) in
+      if d = i + 1 then
+        c + i
+      else
+        compute_cuts_for_one a d (i+1) c []
     else
-      compute_cuts_for_one (d - (i+1) * slices_i) (i+1) (c + i * slices_i) others
+      let d = d - (i+1) * slices_i in
+      let c = c + i * slices_i in
+      compute_cuts_for_one a d (i+1) c others
 
 let compute_cuts d =
   Hashtbl.iter
     (fun a slices_a ->
-       let cuts = compute_cuts_for_one d 0 0 slices_a in
+       let cuts = compute_cuts_for_one a d 0 0 (Array.to_list slices_a) in
        if cuts < !minimum_cuts then minimum_cuts := cuts
     )
     slices
 
 let solve _n d las =
+  let las = List.map float_of_int las in
   init ();
-  feed las;
+  feed_all d las;
   compute_cuts d;
   Format.printf "%d" !minimum_cuts
 
